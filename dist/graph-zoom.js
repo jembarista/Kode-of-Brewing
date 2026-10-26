@@ -1,0 +1,20 @@
+(()=>{
+const viewport=document.getElementById('graphViewport'),svg=viewport.querySelector('svg'),pointers=new Map();let zoom=1,x=0,y=0,gesture=null;
+const clamp=(n,a,b)=>Math.min(b,Math.max(a,n));
+function keepRulerReadingsVisible(){
+const bounds=viewport.getBoundingClientRect();
+for(const [id,vertical] of [['eyReading',true],['tdsReading',false]]){const label=document.getElementById(id);if(!label||label.style.display==='none')continue;const group=label.parentNode,matrix=group.getScreenCTM();if(!matrix)continue;const inverse=matrix.inverse(),a=new DOMPoint(bounds.left+12,bounds.top+12).matrixTransform(inverse),b=new DOMPoint(bounds.right-12,bounds.bottom-12).matrixTransform(inverse),length=label.getComputedTextLength();
+if(vertical){const xx=Number(document.getElementById('extractionRuler').getAttribute('x'))+20;const yy=clamp(380,Math.min(a.y+length,b.y),b.y);label.setAttribute('x',xx);label.setAttribute('y',yy);label.setAttribute('transform',`rotate(-90 ${xx} ${yy})`)}else{const xx=clamp(620,a.x,Math.max(a.x,b.x-length));label.setAttribute('x',xx)}
+}}
+window.refreshRulerReadings=keepRulerReadingsVisible;
+function render(){const w=viewport.clientWidth,h=svg.clientHeight;x=clamp(x,-w*(zoom-1),0);y=clamp(y,-h*(zoom-1),0);svg.style.transform=`translate(${x}px,${y}px) scale(${zoom})`;viewport.classList.toggle('zoomed',zoom>1);viewport.closest('.map').classList.toggle('graphIsZoomed',zoom>1);document.getElementById('graphZoomValue').textContent=Math.round(zoom*100)+'%';document.getElementById('graphZoomOut').disabled=zoom<=1;document.getElementById('graphZoomIn').disabled=zoom>=4;keepRulerReadingsVisible();}
+function setZoom(next,cx=viewport.clientWidth/2,cy=viewport.clientHeight/2){next=clamp(next,1,4);const ratio=next/zoom;x=cx-(cx-x)*ratio;y=cy-(cy-y)*ratio;zoom=next;render()}
+function reset(){zoom=1;x=0;y=0;render()}
+document.getElementById('graphZoomIn').onclick=()=>setZoom(zoom*1.4);document.getElementById('graphZoomOut').onclick=()=>setZoom(zoom/1.4);document.getElementById('graphZoomReset').onclick=reset;
+function pair(){const p=[...pointers.values()];return{distance:Math.hypot(p[1].x-p[0].x,p[1].y-p[0].y),cx:(p[0].x+p[1].x)/2,cy:(p[0].y+p[1].y)/2}}
+viewport.addEventListener('pointerdown',e=>{if(e.pointerType==='mouse'&&e.button!==0)return;const r=viewport.getBoundingClientRect();pointers.set(e.pointerId,{x:e.clientX-r.left,y:e.clientY-r.top});viewport.setPointerCapture(e.pointerId);if(pointers.size===2){const p=pair();gesture={...p,zoom,x,y}}else gesture=null;if(zoom>1)viewport.classList.add('dragging')});
+viewport.addEventListener('pointermove',e=>{if(!pointers.has(e.pointerId))return;const r=viewport.getBoundingClientRect(),old=pointers.get(e.pointerId),point={x:e.clientX-r.left,y:e.clientY-r.top};pointers.set(e.pointerId,point);if(pointers.size===2&&gesture){e.preventDefault();const p=pair(),next=clamp(gesture.zoom*p.distance/Math.max(1,gesture.distance),1,4),ratio=next/gesture.zoom;x=p.cx-(gesture.cx-gesture.x)*ratio;y=p.cy-(gesture.cy-gesture.y)*ratio;zoom=next;render()}else if(pointers.size===1&&zoom>1){e.preventDefault();x+=point.x-old.x;y+=point.y-old.y;render()}});
+for(const event of ['pointerup','pointercancel','lostpointercapture'])viewport.addEventListener(event,e=>{pointers.delete(e.pointerId);gesture=null;viewport.classList.remove('dragging')});
+viewport.addEventListener('wheel',e=>{if(!e.ctrlKey)return;e.preventDefault();const r=viewport.getBoundingClientRect();setZoom(zoom*Math.exp(-e.deltaY*.01),e.clientX-r.left,e.clientY-r.top)},{passive:false});
+viewport.addEventListener('keydown',e=>{if(['+','=','-','0','ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key)){e.preventDefault();if(e.key==='+'||e.key==='=')setZoom(zoom*1.4);else if(e.key==='-')setZoom(zoom/1.4);else if(e.key==='0')reset();else{if(e.key==='ArrowLeft')x+=35;if(e.key==='ArrowRight')x-=35;if(e.key==='ArrowUp')y+=35;if(e.key==='ArrowDown')y-=35;render()}}});viewport.addEventListener('transitionend',keepRulerReadingsVisible);new ResizeObserver(render).observe(viewport);render();
+})();
