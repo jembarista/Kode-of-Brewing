@@ -39,9 +39,8 @@ Recipe changes are stored locally in the browser; they are not synced between de
 
 ## Source layout
 
-- `dist/index.html`: interface, styles, chart and ruler interactions.
-- `dist/simulation.js`: brewer animation, recipe state, measurement calculations and saved presets.
-- `dist/graph-zoom.js`: chart zoom, pan and reading visibility.
+- `dist/index.html`: scoped canvas layout, styles and all functional JavaScript inside the body. Startup waits for DOM readiness and font loading.
+- Barista Hustle fonts are referenced at their supplied hosted URLs; they are not bundled. Cross-origin hosting requires those URLs to allow the app origin via CORS. A generic sans-serif fallback keeps the app usable if font loading is blocked.
 - `dist/`: Kode and Barista Hustle logo assets and the FB45 reference drawing.
 
 ## References and assets
